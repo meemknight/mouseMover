@@ -6,6 +6,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <assert.h>
 
 #define DISPLAY(x) std::cout << #x << ": " << x
 
@@ -80,6 +81,12 @@ void getMouseData(int &index, POINT &position)
 
 }
 
+void setMouseColor()
+{
+	//HCURSOR hCursor = LoadCursor(NULL, IDC_NO);
+	//SetCursor(hCursor);
+}
+
 void decrease()
 {
 	int current;
@@ -89,6 +96,7 @@ void decrease()
 	{
 		int padding = position.x - monitors[current].second.rcMonitor.left;
 		SetCursorPos({ monitors[current - 1].second.rcMonitor.left + padding }, position.y);
+		setMouseColor();
 	}
 };
 
@@ -101,7 +109,7 @@ void increase()
 	{
 		int padding = position.x - monitors[current].second.rcMonitor.left;
 		SetCursorPos({ monitors[current + 1].second.rcMonitor.left + padding }, position.y);
-
+		setMouseColor();
 	}
 
 }
@@ -111,17 +119,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	switch (uMsg)
 	{
 	case WM_DESTROY:
+		UnregisterHotKey(0, 1);
 		PostQuitMessage(0);
 		ExitProcess(0);
 		break;
 	case WM_DEVICECHANGE:
 		loadMonitors();
 	default:
-		return DefWindowProc(hwnd, uMsg, wParam, lParam);
+		DefWindowProc(hwnd, uMsg, wParam, lParam);
 		break;
 	}
 
-	return 0;
+	return 1;
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow){
@@ -138,7 +147,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	wcex.hInstance = hInstance;
 	wcex.hIcon = LoadIcon(hInstance, IDI_APPLICATION);
 	wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+	wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW);
 	wcex.lpszMenuName = NULL;
 	wcex.lpszClassName = szWindowClass;
 	wcex.hIconSm = LoadIcon(wcex.hInstance, IDI_APPLICATION);
@@ -169,7 +178,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		"mouseMover",
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT, CW_USEDEFAULT,
-		500, 500,
+		300, 90,
 		NULL,
 		NULL,
 		hInstance,
@@ -189,67 +198,36 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);
 
-	// Main message loop:
-
-
-	std::cout << "\n";
-	
-	HCURSOR defaultCursor = GetCursor();
-	struct RAII_
-	{
-		HCURSOR c;
-		void(*function)(HCURSOR c);
-		~RAII_() { function(c); }
-	}instance{defaultCursor, [](HCURSOR c)
-	{
-		SetCursor(c);
-	} };
-
-	auto a = [defaultCursor]() {};
+	HANDLE lhandle, rhandle;
+	assert(RegisterHotKey(0, 1, MOD_ALT | MOD_WIN | MOD_NOREPEAT, VK_LEFT));
+	assert(RegisterHotKey(0, 2, MOD_ALT | MOD_WIN | MOD_NOREPEAT, VK_RIGHT));
 
 	loadMonitors();
 
 	bool pressed1 = 0;
 	bool pressed2 = 0;
 
-
+	MSG msg;
 	while (1)
-	{
-		MSG msg;
-
-		GetMessage(&msg, NULL, 0, 0);
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
+	{	
+		PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
 		
-
-		//SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), { 0,0 });
-		//std::cout << monitorIndex << " ";
-
-		if(pressed1 == 0 && GetAsyncKeyState('Q'))
+		if(msg.message == WM_HOTKEY)
 		{
-			pressed1 = 1;
-			decrease();
-		}
-		else
-		{
-			if(!GetAsyncKeyState('Q'))
+			if(msg.wParam == 1)
 			{
-				pressed1 = 0;
+				decrease();
+			}else
+			if(msg.wParam == 2)
+			{
+				increase();
 			}
+		}else
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
 		}
 		
-		if (pressed2 == 0 && GetAsyncKeyState('E'))
-		{
-			pressed2 = 1;
-			increase();
-		}
-		else
-		{
-			if (!GetAsyncKeyState('E'))
-			{
-				pressed2 = 0;
-			}
-		}
 
 	}
 
