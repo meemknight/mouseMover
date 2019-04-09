@@ -120,6 +120,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
 	case WM_DESTROY:
 		UnregisterHotKey(0, 1);
+		UnregisterHotKey(0, 2);
 		PostQuitMessage(0);
 		ExitProcess(0);
 		break;
