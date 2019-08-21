@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <assert.h>
 
+bool running = true;
+
 #define DISPLAY(x) std::cout << #x << ": " << x
 
 std::vector<std::pair<HMONITOR, MONITORINFO>> monitors;
@@ -25,36 +27,11 @@ void loadMonitors()
 	monitors.clear();
 	EnumDisplayMonitors(NULL, NULL, registerMonitor, 0);
 
-	int c = 0;
+	
 	for (auto &i : monitors)
 	{
-
 		i.second.cbSize = sizeof(i.second);
-		if (!GetMonitorInfo(i.first, &i.second))
-		{
-			std::cout << "error getting some monitor data: " << GetLastError() << "\n";
-		}
-		else
-		{
-			/*
-			//std::cout << "Monitor: " << c << " " << info.second.szDevice << "\n";
-			DISPLAY(i.second.rcMonitor.bottom) << " ";
-			DISPLAY(i.second.rcMonitor.top) << " ";
-			DISPLAY(i.second.rcMonitor.left) << " ";
-			DISPLAY(i.second.rcMonitor.right) << "\n";
-
-			DISPLAY(i.second.rcWork.bottom) << " ";
-			DISPLAY(i.second.rcWork.top) << " ";
-			DISPLAY(i.second.rcWork.left) << " ";
-			DISPLAY(i.second.rcWork.right) << "\n";
-
-			std::cout << ((i.second.dwFlags & MONITORINFOF_PRIMARY) ? "Primary Monitor" : "Non primary Monitor");
-
-			std::cout << "\n\n";
-			*/
-		}
-
-		c++;
+		GetMonitorInfo(i.first, &i.second);
 	}
 
 
@@ -81,11 +58,6 @@ void getMouseData(int &index, POINT &position)
 
 }
 
-void setMouseColor()
-{
-	//HCURSOR hCursor = LoadCursor(NULL, IDC_NO);
-	//SetCursor(hCursor);
-}
 
 void decrease()
 {
@@ -96,7 +68,6 @@ void decrease()
 	{
 		int padding = position.x - monitors[current].second.rcMonitor.left;
 		SetCursorPos({ monitors[current - 1].second.rcMonitor.left + padding }, position.y);
-		setMouseColor();
 	}
 };
 
@@ -109,7 +80,6 @@ void increase()
 	{
 		int padding = position.x - monitors[current].second.rcMonitor.left;
 		SetCursorPos({ monitors[current + 1].second.rcMonitor.left + padding }, position.y);
-		setMouseColor();
 	}
 
 }
@@ -118,14 +88,33 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMsg)
 	{
+	case WM_CREATE:
+
+		RegisterHotKey(hwnd, 1, MOD_ALT | MOD_WIN | MOD_NOREPEAT, VK_LEFT);
+		RegisterHotKey(hwnd, 2, MOD_ALT | MOD_WIN | MOD_NOREPEAT, VK_RIGHT);
+
+		break;
 	case WM_DESTROY:
 		UnregisterHotKey(0, 1);
 		UnregisterHotKey(0, 2);
+		running = false;
 		PostQuitMessage(0);
 		ExitProcess(0);
 		break;
 	case WM_DEVICECHANGE:
 		loadMonitors();
+		break;
+	case WM_HOTKEY:
+		if (wParam == 1)
+		{
+			decrease();
+		}
+		else
+		if (wParam == 2)
+		{
+			increase();
+		}
+		break;
 	default:
 		DefWindowProc(hwnd, uMsg, wParam, lParam);
 		break;
@@ -199,37 +188,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);
 
-	HANDLE lhandle, rhandle;
-	assert(RegisterHotKey(0, 1, MOD_ALT | MOD_WIN | MOD_NOREPEAT, VK_LEFT));
-	assert(RegisterHotKey(0, 2, MOD_ALT | MOD_WIN | MOD_NOREPEAT, VK_RIGHT));
-
 	loadMonitors();
 
 	bool pressed1 = 0;
 	bool pressed2 = 0;
 
 	MSG msg;
-	while (1)
+	while (running)
 	{	
-		PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
+		GetMessage(&msg, NULL, 0, 0);
+	
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
 		
-		if(msg.message == WM_HOTKEY)
-		{
-			if(msg.wParam == 1)
-			{
-				decrease();
-			}else
-			if(msg.wParam == 2)
-			{
-				increase();
-			}
-		}else
-		{
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-		}
-		
-
 	}
 
 	return 0;
